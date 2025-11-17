@@ -513,6 +513,50 @@ export const calculateMetrics = (leads, dateRange = null) => {
 		}
 	});
 
+	// Calcular dados do funil de conversão
+	// Leads para abordar: leads que ainda não receberam nenhum follow-up
+	const leadsParaAbordar = leads.filter((lead) => {
+		let temEnvio = false;
+		for (let i = 1; i <= 14; i++) {
+			if (lead[`data_envio${i}`] != null) {
+				temEnvio = true;
+				break;
+			}
+		}
+		if (lead.data_envio9B != null) {
+			temEnvio = true;
+		}
+		return !temEnvio;
+	}).length;
+
+	// Leads abordados: leads que receberam pelo menos 1 mensagem
+	const leadsAbordados = leads.filter((lead) => {
+		let temEnvio = false;
+		for (let i = 1; i <= 14; i++) {
+			if (lead[`data_envio${i}`] != null) {
+				temEnvio = true;
+				break;
+			}
+		}
+		if (lead.data_envio9B != null) {
+			temEnvio = true;
+		}
+		return temEnvio;
+	}).length;
+
+	// Leads processados: campo ja_processado = "sim"
+	const leadsProcessadosFunil = jaProcessados;
+
+	// Documentos enviados: campo docProcessado = "sim"
+	const documentosEnviados = docsProcessados;
+
+	const funnelData = {
+		paraAbordar: leadsParaAbordar,
+		abordados: leadsAbordados,
+		processados: leadsProcessadosFunil,
+		documentosEnviados: documentosEnviados,
+	};
+
 	return {
 		total,
 		totalAtivos,
@@ -538,6 +582,7 @@ export const calculateMetrics = (leads, dateRange = null) => {
 		ultimosFollowUps: ultimosFollowUpsOrdenados,
 		docsAprovados,
 		leadsPorEtapaFollowUp,
+		funnelData,
 	};
 };
 

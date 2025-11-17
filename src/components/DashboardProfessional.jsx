@@ -20,6 +20,7 @@ import { DistribuicaoPieChart } from './DistribuicaoPieChart';
 import { MensagensHojeChart } from './MensagensHojeChart';
 import { UltimosFollowUps } from './UltimosFollowUps';
 import { LeadsPorEtapa } from './LeadsPorEtapa';
+import { LeadsFunnel } from './LeadsFunnel';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -72,16 +73,14 @@ export const DashboardProfessional = () => {
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-[1400px] mx-auto px-6 py-5">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Dashboard / Leads Qualificados</h1>
-              {lastUpdate && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Atualizado {format(lastUpdate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Fortalar</h1>
+            {lastUpdate && (
+              <p className="text-sm text-gray-500 mt-1">
+                Atualizado {format(lastUpdate, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              </p>
+            )}
+          </div>            <div className="flex items-center gap-3">
               <DateRangeFilter onRangeChange={handleDateRangeChange} />
               <button
                 onClick={refetch}
@@ -121,7 +120,7 @@ export const DashboardProfessional = () => {
             {/* Card Mensagens do Período */}
             <div className="bg-white rounded-xl p-6 border border-gray-100">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm text-gray-500 font-medium">MENSAGENS {dateRange.label.toUpperCase()}</h3>
+                <h3 className="text-sm text-gray-500 font-medium">MENSAGENS DO PERÍODO</h3>
                 {metrics.comparativoPeriodo?.variacaoPercentual !== undefined && (
                   <span className={`text-xs font-medium ${metrics.comparativoPeriodo.variacaoPercentual >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {metrics.comparativoPeriodo.variacaoPercentual >= 0 ? '↑' : '↓'} {Math.abs(metrics.comparativoPeriodo.variacaoPercentual)}%
@@ -129,7 +128,11 @@ export const DashboardProfessional = () => {
                 )}
               </div>
               <div className="text-4xl font-bold text-green-600 mb-1">{metrics.mensagensEnviadasPeriodo?.toLocaleString('pt-BR') || 0}</div>
-              <div className="text-xs text-gray-500">{dateRange.label}</div>
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-medium">
+                  {dateRange.label}
+                </span>
+              </div>
             </div>
 
             {/* Card Leads Ativos */}
@@ -199,8 +202,9 @@ export const DashboardProfessional = () => {
           </div>
         </div>
 
-        {/* Leads por Etapa de Follow-up */}
-        <div className="mb-6">
+        {/* Funil de Conversão e Leads por Etapa */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <LeadsFunnel data={metrics.funnelData || {}} />
           <LeadsPorEtapa data={metrics.leadsPorEtapaFollowUp || {}} />
         </div>
 
