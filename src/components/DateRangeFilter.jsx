@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
 import { getDateRangePresets } from '../utils/metricsCalculator';
 
@@ -8,16 +8,15 @@ export const DateRangeFilter = ({ onRangeChange }) => {
   const [customEnd, setCustomEnd] = useState('');
   const [selectedPreset, setSelectedPreset] = useState('todos');
 
-  const presets = getDateRangePresets();
+  const presets = useMemo(() => getDateRangePresets(), []);
 
-  const handlePresetClick = (presetKey) => {
+  const handlePresetClick = useCallback((presetKey) => {
     setSelectedPreset(presetKey);
-    const preset = presets[presetKey];
-    onRangeChange(preset);
+    onRangeChange(presets[presetKey]);
     setIsOpen(false);
-  };
+  }, [onRangeChange, presets]);
 
-  const handleCustomRange = () => {
+  const handleCustomRange = useCallback(() => {
     if (customStart && customEnd) {
       onRangeChange({
         label: 'Período personalizado',
@@ -27,14 +26,12 @@ export const DateRangeFilter = ({ onRangeChange }) => {
       setSelectedPreset('custom');
       setIsOpen(false);
     }
-  };
+  }, [customStart, customEnd, onRangeChange]);
 
-  const getCurrentLabel = () => {
-    if (selectedPreset === 'custom') {
-      return 'Período personalizado';
-    }
+  const currentLabel = useMemo(() => {
+    if (selectedPreset === 'custom') return 'Período personalizado';
     return presets[selectedPreset]?.label || 'Todos os períodos';
-  };
+  }, [selectedPreset, presets]);
 
   return (
     <div className="relative">
@@ -43,7 +40,7 @@ export const DateRangeFilter = ({ onRangeChange }) => {
         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
       >
         <Calendar className="w-4 h-4 text-gray-600" />
-        <span className="text-sm font-medium text-gray-700">{getCurrentLabel()}</span>
+        <span className="text-sm font-medium text-gray-700">{currentLabel}</span>
         <ChevronDown className={`w-4 h-4 text-gray-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 

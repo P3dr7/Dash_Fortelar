@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { leadsService } from "../services/leadsService";
 import { calculateMetrics } from "../utils/metricsCalculator";
 
-// Define se quer usar Realtime ou apenas polling
-const USE_REALTIME = false; // Mude para true para habilitar Realtime
+const USE_REALTIME = false;
+const POLLING_INTERVAL = 120000; // 2 minutos
 
 export const useLeadsData = (dateRange = null) => {
 	const [data, setData] = useState([]);
@@ -11,57 +11,53 @@ export const useLeadsData = (dateRange = null) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [lastUpdate, setLastUpdate] = useState(null);
+	const isMountedRef = useRef(true);
 
 	const fetchData = useCallback(async () => {
+		if (!isMountedRef.current) return;
+
 		try {
-			console.log("🔄 Iniciando busca de dados...");
 			setLoading(true);
 			setError(null);
+
 			const leads = await leadsService.fetchAll();
-			console.log("✅ Dados recebidos:", leads?.length, "leads");
+
+			if (!isMountedRef.current) return;
+
 			setData(leads);
-			const calculatedMetrics = calculateMetrics(leads, dateRange);
-			console.log("✅ Métricas calculadas:", calculatedMetrics);
-			setMetrics(calculatedMetrics);
+			setMetrics(calculateMetrics(leads, dateRange));
 			setLastUpdate(new Date());
 		} catch (err) {
-			console.error("❌ Erro ao buscar dados:", err);
-			setError(err.message);
+			if (isMountedRef.current) {
+				setError(err.message);
+			}
 		} finally {
-			setLoading(false);
-			console.log("✅ Loading finalizado");
+			if (isMountedRef.current) {
+				setLoading(false);
+			}
 		}
 	}, [dateRange]);
 
 	useEffect(() => {
+		isMountedRef.current = true;
 		fetchData();
 
-		// Polling a cada 2 minutos (120000ms)
-		const interval = setInterval(fetchData, 1200000);
-
-		// Realtime (apenas se habilitado)
+		const interval = setInterval(fetchData, POLLING_INTERVAL);
 		let subscription = null;
+
 		if (USE_REALTIME) {
 			leadsService
-				.subscribeToChanges(() => {
-					fetchData();
-				})
+				.subscribeToChanges(fetchData)
 				.then((channel) => {
 					subscription = channel;
-					if (channel) {
-						console.log("✅ Realtime conectado");
-					}
 				})
-				.catch(() => {
-					console.log("ℹ️ Realtime desabilitado - usando apenas polling");
-				});
+				.catch(() => {}); // Silently fail to polling
 		}
 
 		return () => {
+			isMountedRef.current = false;
 			clearInterval(interval);
-			if (subscription) {
-				subscription.unsubscribe().catch(() => {});
-			}
+			subscription?.unsubscribe?.().catch(() => {});
 		};
 	}, [fetchData]);
 

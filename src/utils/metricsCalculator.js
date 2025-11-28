@@ -449,17 +449,24 @@ export const calculateMetrics = (leads, dateRange = null) => {
 			}
 		}
 
-		// Adicionar apenas o último follow-up de cada lead
-		if (ultimoFollowUp && !leadsProcessados.has(lead.id || lead.telefone)) {
-			ultimosFollowUps.push({
-				nome: lead.nome || "Sem nome",
-				telefone: lead.telefone || "Sem telefone",
-				followUp: `Follow-up ${ultimoFollowUp}`,
-				numeroFollowUp: ultimoFollowUp,
-				dataEnvio: ultimaDataEnvio,
-				situacao: lead.situacao || "Não especificado",
-			});
-			leadsProcessados.add(lead.id || lead.telefone);
+		// Adicionar apenas o último follow-up de cada lead (com data válida)
+		if (
+			ultimoFollowUp &&
+			ultimaDataEnvio &&
+			!leadsProcessados.has(lead.id || lead.telefone)
+		) {
+			// Validar que a data é válida
+			if (!isNaN(ultimaDataEnvio.getTime())) {
+				ultimosFollowUps.push({
+					nome: lead.nome || "Sem nome",
+					telefone: lead.telefone || "Sem telefone",
+					followUp: `Follow-up ${ultimoFollowUp}`,
+					numeroFollowUp: ultimoFollowUp,
+					dataEnvio: ultimaDataEnvio,
+					situacao: lead.situacao || "Não especificado",
+				});
+				leadsProcessados.add(lead.id || lead.telefone);
+			}
 		}
 	});
 
@@ -506,55 +513,71 @@ export const calculateMetrics = (leads, dateRange = null) => {
 		if (ultimaEtapaLabel) {
 			leadsPorEtapaFollowUp[ultimaEtapaLabel] =
 				(leadsPorEtapaFollowUp[ultimaEtapaLabel] || 0) + 1;
-		} else {
-			// Lead ainda não recebeu nenhum follow-up
-			leadsPorEtapaFollowUp["Sem follow-up"] =
-				(leadsPorEtapaFollowUp["Sem follow-up"] || 0) + 1;
 		}
+		// Não adicionar "Sem follow-up" - mostrar apenas os que foram enviados
 	});
 
 	// Calcular dados do funil de conversão
-	// Leads para abordar: leads que ainda não receberam nenhum follow-up
-	const leadsParaAbordar = leads.filter((lead) => {
-		let temEnvio = false;
+	// Leads abordados: leads com campo followup > 0 (pelo menos 1 follow-up registrado)
+	const abordados = leads.filter((lead) => {
+		const followup = parseInt(lead.followup) || 0;
+		return followup > 0;
+	}).length;
+
+	// Em negociação: leads com situacao contendo 'negociação', 'orçamento' ou que responderam
+	const emNegociacao = leads.filter((lead) => {
+		const situacao = (lead.situacao || "").toLowerCase();
+		let temResposta = false;
+
 		for (let i = 1; i <= 14; i++) {
-			if (lead[`data_envio${i}`] != null) {
-				temEnvio = true;
+			const followUp = lead[`follow_up${i}`];
+			if (
+				followUp &&
+				(followUp.toLowerCase().includes("sim") ||
+					followUp.toLowerCase().includes("respondeu") ||
+					followUp.toLowerCase().includes("resposta"))
+			) {
+				temResposta = true;
 				break;
 			}
 		}
-		if (lead.data_envio9B != null) {
-			temEnvio = true;
+		if (
+			lead.follow_up9B &&
+			(lead.follow_up9B.toLowerCase().includes("sim") ||
+				lead.follow_up9B.toLowerCase().includes("respondeu") ||
+				lead.follow_up9B.toLowerCase().includes("resposta"))
+		) {
+			temResposta = true;
 		}
-		return !temEnvio;
+
+		return (
+			temResposta ||
+			situacao.includes("negociacao") ||
+			situacao.includes("negociação") ||
+			situacao.includes("orcamento") ||
+			situacao.includes("orçamento")
+		);
 	}).length;
 
-	// Leads abordados: leads que receberam pelo menos 1 mensagem
-	const leadsAbordados = leads.filter((lead) => {
-		let temEnvio = false;
-		for (let i = 1; i <= 14; i++) {
-			if (lead[`data_envio${i}`] != null) {
-				temEnvio = true;
-				break;
-			}
-		}
-		if (lead.data_envio9B != null) {
-			temEnvio = true;
-		}
-		return temEnvio;
-	}).length;
-
-	// Leads processados: campo ja_processado = "sim"
-	const leadsProcessadosFunil = jaProcessados;
-
-	// Documentos enviados: campo docProcessado = "sim"
+	// Documentos enviados: leads com docProcessado = "sim"
 	const documentosEnviados = docsProcessados;
 
+	// Comprados: leads com situacao 'comprou', 'vendido', 'finalizado' ou ja_processado = 'sim'
+	const comprados = leads.filter((lead) => {
+		const situacao = (lead.situacao || "").toLowerCase();
+		return (
+			situacao.includes("comprou") ||
+			situacao.includes("vendido") ||
+			situacao.includes("finalizado") ||
+			lead.ja_processado === "sim"
+		);
+	}).length;
+
 	const funnelData = {
-		paraAbordar: leadsParaAbordar,
-		abordados: leadsAbordados,
-		processados: leadsProcessadosFunil,
-		documentosEnviados: documentosEnviados,
+		abordados,
+		emNegociacao,
+		documentosEnviados,
+		comprados,
 	};
 
 	return {
